@@ -1,12 +1,12 @@
-import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 from models.models import Usuario
 
 class UsuarioController:
     def __init__(self,db):
         self.db = db
 
-    def gerar_hash(self, senha:str):
-        return hashlib.sha256(senha.encode()).hexdigest()
+    def gerar_hash(self, senha: str):
+        return generate_password_hash(senha)
 
     def cadastrar(self, dados):
         if not dados.get("nome") or not dados.get("email") or not dados.get("senha") or not dados.get("telefone"):
@@ -28,19 +28,52 @@ class UsuarioController:
         self.db.refresh(novo_usuario)
         return novo_usuario
 
-    def autenticar(self,email,senha):
+    def autenticar(self, email, senha):
         if not email or not senha:
             raise ValueError("Email e senha são obrigatórios.")
 
-        senha_hash = self.gerar_hash(senha)
-        usuario = self.db.query(Usuario).filter(
-            Usuario.email == email,
-            Usuario.senha_hash == senha_hash
-        ).first()
-        return usuario
+        usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+
+        if usuario and check_password_hash(usuario.senha_hash, senha):
+            return usuario
+            
+        return None
 
     def buscar_usuario(self, usuario_email):
         usuario = self.db.query(Usuario).filter(Usuario.email == usuario_email).first()
         if not usuario:
             raise ValueError("Usuário não encontrado.")
+        return usuario
+
+
+    def deletar(self, usuario_id: int):
+            usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+            
+            if not usuario:
+                raise ValueError("Usuário não encontrado.")
+
+            self.db.delete(usuario)
+            self.db.commit()
+            return True
+
+
+    def atualizar(self, usuario_id: int,dados):
+        usuario = self.db.query(Usuario).filter(Usuario.id == usuario_id).first()
+        if not usuario:
+            raise ValueError(
+                "Usuário não encontrado."
+            )
+
+
+        if "nome" in dados:
+            usuario.nome = dados['nome']
+
+        if "telefone" in dados:
+            usuario.telefone = dados['telefone']
+        if "senha" in dados:
+            usuario.senha_hash = self.gerar_hash(dados['senha'])
+
+
+        self.db.commit()
+        self.db.refresh(usuario)
         return usuario
