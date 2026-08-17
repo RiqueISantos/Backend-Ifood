@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, BigInteger, String, DateTime
+from sqlalchemy import Column, BigInteger, String, DateTime, Boolean
 from database import Base
 
 class Usuario(Base):
@@ -12,6 +12,7 @@ class Usuario(Base):
     senha_hash = Column(String(255), nullable=True)
     provedor_auth = Column(String(20), nullable=True, default="local")
     data_criacao = Column(DateTime, default=datetime.utcnow, nullable=False)
+    status = Column(Boolean, default=False)
 
     def to_dict(self):
         return {
