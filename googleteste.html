@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Login com o Google</title>
+    <!-- Importa a biblioteca oficial do Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        #token-box {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+            height: 100px;
+            display: none;
+        }
+        .sucesso {
+            color: green;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Painel de Teste - Google Auth</h2>
+        <p>Clique no botão abaixo para logar com sua conta Google:</p>
+
+        <!-- Configuração do Google Client ID e da função de callback -->
+        <div id="g_id_onload"
+             data-client_id="1020033884873-9hlgscnf3rvpi3el9s1dc4cfkcv6tltj.apps.googleusercontent.com"
+             data-callback="lidarComLogin"
+             data-auto_prompt="false">
+        </div>
+
+        <!-- Renderiza o botão padrão do Google -->
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+
+        <div id="status" class="sucesso"></div>
+        <textarea id="token-box" readonly placeholder="O token do Google aparecerá aqui..."></textarea>
+    </div>
+
+    <script>
+        function lidarComLogin(response) {
+            // O Google devolve um objeto contendo a credencial (o token de ID)
+            const tokenGoogle = response.credential;
+
+            // Mostra o token na tela para facilitar sua cópia
+            document.getElementById("status").innerText = "Login realizado com sucesso! Copie o token abaixo:";
+            
+            const caixaToken = document.getElementById("token-box");
+            caixaToken.style.display = "block";
+            caixaToken.value = tokenGoogle;
+
+            // Também joga no console caso prefira (F12)
+            console.log("Token do Google:", tokenGoogle);
+        }
+    </script>
+
+</body>
+</html>

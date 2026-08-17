@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Login com o Facebook</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        #token-box {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 400px;
+            height: 100px;
+            display: none;
+        }
+        .sucesso {
+            color: green;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Painel de Teste - Facebook Auth</h2>
+        <p>Clique no botão abaixo para logar com sua conta Facebook:</p>
+
+        <!-- Botão nativo do Facebook -->
+        <div class="fb-login-button" 
+             data-width="" 
+             data-size="large" 
+             data-button-type="continue_with" 
+             data-layout="default" 
+             data-auto-logout-link="false" 
+             data-use-continue-as="true" 
+             data-scope="public_profile,email"
+             onlogin="verificarStatusLogin();">
+        </div>
+
+        <div id="status" class="sucesso"></div>
+        <textarea id="token-box" readonly placeholder="O token do Facebook aparecerá aqui..."></textarea>
+    </div>
+
+    <script>
+        // 1. Inicializa o SDK do Facebook
+        window.fbAsyncInit = function() {
+            FB.init({
+                appId      : 'COLOQUE_SEU_APP_ID_DO_FACEBOOK_AQUI',
+                cookie     : true,
+                xfbml      : true,
+                version    : 'v19.0'
+            });
+        };
+
+        // 2. Importa o script oficial assincronamente
+        (function(d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) return;
+            js = d.createElement(s); js.id = id;
+            js.src = "https://connect.facebook.net/pt_BR/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk'));
+
+        // 3. Função chamada pelo evento "onlogin" do botão
+        function verificarStatusLogin() {
+            FB.getLoginStatus(function(response) {
+                if (response.status === 'connected') {
+                    // O Token de Acesso que seu Backend precisa!
+                    const tokenFacebook = response.authResponse.accessToken;
+
+                    document.getElementById("status").innerText = "Login realizado com sucesso! Copie o token abaixo:";
+                    
+                    const caixaToken = document.getElementById("token-box");
+                    caixaToken.style.display = "block";
+                    caixaToken.value = tokenFacebook;
+
+                    console.log("Token do Facebook:", tokenFacebook);
+                } else {
+                    document.getElementById("status").innerText = "Login não concluído.";
+                    document.getElementById("status").style.color = "red";
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

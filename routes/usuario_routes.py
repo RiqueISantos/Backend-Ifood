@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from database import SessionLocal
 from controllers.usuario_controller import UsuarioController
 from auth import criar_token_jwt, token_obrigatorio
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import requests
 
 usuario_bp = Blueprint("usuarios", __name__,url_prefix="/usuarios")
 
@@ -113,3 +116,51 @@ def alterar(usuario_id): # <--- O decorador injeta o ID aqui novamente!
         return jsonify({"erro": "Erro interno no servidor."}), 500
     finally:
         db.close()
+
+
+# Coloque aqui aquele código que você pegou no Passo 1
+GOOGLE_CLIENT_ID = "1020033884873-9hlgscnf3rvpi3el9s1dc4cfkcv6tltj.apps.googleusercontent.com" 
+
+@usuario_bp.route("/login/google", methods=["POST"])
+def login_google():
+    dados = request.get_json()
+    token_google = dados.get("token_google")
+
+    if not token_google:
+        return jsonify({"erro": "Token do Google não fornecido."}), 400
+
+    db = SessionLocal()
+    try:
+        # Valida o token com o Google
+        idinfo = id_token.verify_oauth2_token(
+            token_google, 
+            google_requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+
+        email = idinfo.get('email')
+        nome = idinfo.get('name', 'Usuário Google')
+
+        controller = UsuarioController(db)
+        usuario = controller.autenticar_ou_criar_google(email, nome)
+
+        # Cria o SEU token JWT
+        token_de_acesso = criar_token_jwt(usuario.id)
+
+        return jsonify({
+            "mensagem": "Login com Google realizado com sucesso!",
+            "access_token": token_de_acesso,
+            "token_type": "bearer",
+            "usuario": {"id": usuario.id, "nome": usuario.nome, "email": usuario.email}
+        }), 200
+    except ValueError as e:
+            # ISSO VAI MOSTRAR O ERRO REAL NO SEU TERMINAL DO FLASK
+            print(f"ERRO DO GOOGLE DETALHADO: {str(e)}")
+            return jsonify({"erro": f"Token do Google inválido: {str(e)}"}), 401
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"erro": "Erro interno no servidor."}), 500
+    finally:
+        db.close()
+

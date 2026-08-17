@@ -77,3 +77,24 @@ class UsuarioController:
         self.db.commit()
         self.db.refresh(usuario)
         return usuario
+
+
+    def autenticar_ou_criar_google(self, email: str, nome: str):
+            # 1. Tenta achar o usuário pelo e-mail
+            usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+            
+            # 2. Se o usuário não existir, cria um novo automaticamente
+            if not usuario:
+                usuario = Usuario(
+                    nome=nome,
+                    email=email,
+                    senha_hash=None, # Não tem senha
+                    telefone=None,   # Não tem telefone inicialmente
+                    provedor_auth="google"
+                )
+                self.db.add(usuario)
+                self.db.commit()
+                self.db.refresh(usuario)
+                
+            # 3. Retorna o usuário (novo ou existente)
+            return usuario
