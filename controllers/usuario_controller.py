@@ -32,7 +32,6 @@ class UsuarioController:
         if self.db.query(Usuario).filter(Usuario.email == dados["email"]).first():
             raise ValueError("Email já cadastrado.")
 
-
         novo_usuario = Usuario(
             nome=dados["nome"],
             email=dados["email"],
@@ -45,7 +44,6 @@ class UsuarioController:
         self.db.add(novo_usuario)
         self.db.commit()
         self.db.refresh(novo_usuario)
-
 
         if self.sms_service:
             self.sms_service.enviar_verificacao(telefone)
@@ -94,34 +92,6 @@ class UsuarioController:
         self.sms_service.enviar_verificacao(usuario.telefone)
         return True
 
-    def autenticar_google(self, dados_google):
-        email = dados_google.get("email")
-        nome = dados_google.get("name")
-
-        if not email:
-            raise ValueError("Email não retornado pelo Google.")
-
-        usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
-
-        if usuario:
-            if usuario.provedor_auth == "local":
-                usuario.provedor_auth = "google_local"
-                self.db.commit()
-                self.db.refresh(usuario)
-            return usuario
-
-        novo_usuario = Usuario(
-            nome=nome,
-            email=email,
-            senha_hash=None,
-            telefone=None,
-            provedor_auth="google"
-        )
-        self.db.add(novo_usuario)
-        self.db.commit()
-        self.db.refresh(novo_usuario)
-        return novo_usuario
-
     def buscar_usuario(self, usuario_email):
         usuario = self.db.query(Usuario).filter(Usuario.email == usuario_email).first()
         if not usuario:
@@ -156,23 +126,29 @@ class UsuarioController:
         self.db.refresh(usuario)
         return usuario
 
-
     def autenticar_ou_criar_google(self, email: str, nome: str):
-            # 1. Tenta achar o usuário pelo e-mail
-            usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+        # 1. Tenta achar o usuário pelo e-mail
+        usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+        
+        # 2. Se o usuário não existir, cria um novo automaticamente
+        if not usuario:
+            usuario = Usuario(
+                nome=nome,
+                email=email,
+                senha_hash=None, # Não tem senha
+                telefone=None,   # Não tem telefone inicialmente
+                provedor_auth="google",
+                status=True      # Usuários do Google já vêm com e-mail validado por eles, então podemos considerar ativo
+            )
+            self.db.add(usuario)
+            self.db.commit()
+            self.db.refresh(usuario)
             
-            # 2. Se o usuário não existir, cria um novo automaticamente
-            if not usuario:
-                usuario = Usuario(
-                    nome=nome,
-                    email=email,
-                    senha_hash=None, # Não tem senha
-                    telefone=None,   # Não tem telefone inicialmente
-                    provedor_auth="google"
-                )
-                self.db.add(usuario)
-                self.db.commit()
-                self.db.refresh(usuario)
-                
-            # 3. Retorna o usuário (novo ou existente)
-            return usuario
+        # 3. Se o usuário existe, mas foi criado via login comum (local), atualiza o provedor
+        elif usuario.provedor_auth == "local":
+            usuario.provedor_auth = "google_local"
+            self.db.commit()
+            self.db.refresh(usuario)
+            
+        # 4. Retorna o usuário (novo ou existente)
+        return usuario

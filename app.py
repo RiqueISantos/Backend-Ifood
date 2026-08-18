@@ -7,11 +7,12 @@ load_dotenv()
 
 from database import engine, Base
 import models
-from routes.usuario_routes import usuario_bp, oauth
+from routes.usuario_routes import usuario_bp
 
 app = Flask(__name__)
 
-app.secret_key = os.getenv("SECRET_KEY_FLASK") or os.getenv("SECRET_KEY_GOOGLE") or "fallback_secreto_desenvolvimento"
+# O Flask ainda precisa de uma secret key geral por segurança
+app.secret_key = os.getenv("SECRET_KEY_FLASK") or "fallback_secreto_desenvolvimento"
 app.config["SECRET_KEY"] = app.secret_key
 
 CORS(app, resources={
@@ -26,7 +27,8 @@ CORS(app, resources={
 })
 
 Base.metadata.create_all(bind=engine)
-oauth.init_app(app)
+
+# Registra as rotas
 app.register_blueprint(usuario_bp)
 
 @app.route("/")
