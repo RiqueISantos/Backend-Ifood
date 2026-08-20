@@ -1,16 +1,59 @@
-version: '3.7'
+version: '3.9'
 
 services:
+
+  # ── Banco de dados ────────────────────────────────────────────────────────
   postgres:
     image: bitnami/postgresql:latest
+    container_name: ifood_postgres
+    restart: unless-stopped
     ports:
       - '5432:5432'
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password123
-      - POSTGRES_DB=db_ifood
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_PASSWORD=password123
+      - POSTGRESQL_DATABASE=db_ifood
     volumes:
-      - 'polls_pg_data:/bitnami/postgresql'
+      - pg_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend Flask ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ifood_backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    env_file:
+      - .env
+    environment:
+      # Sobrescreve a DATABASE_URL para apontar para o container do postgres
+      - DATABASE_URL=postgresql://postgres:password123@postgres:5432/db_ifood
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Frontend Vite + Nginx ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend-ifood/Frontend-Ifood
+      dockerfile: Dockerfile
+      args:
+        # Em produção Docker, o frontend faz proxy via Nginx para /api/
+        # então VITE_API_URL aponta para a rota /api do próprio servidor
+        - VITE_API_URL=http://localhost:5000
+    container_name: ifood_frontend
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
 
 volumes:
-  polls_pg_data:
+  pg_data:
