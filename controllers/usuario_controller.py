@@ -48,7 +48,7 @@ class UsuarioController:
 
         # Envia código de verificação por e-mail (novo fluxo iFood)
         if self.email_service:
-            self.email_service.enviar_verificacao(dados["email"])
+            self.email_service.enviar_verificacao(dados["email"], self.db)
 
         return novo_usuario
 
@@ -67,7 +67,7 @@ class UsuarioController:
         if not usuario.telefone:
             raise ValueError("Usuário não possui telefone cadastrado.")
 
-        valido = self.sms_service.verificar_codigo(usuario.telefone, codigo)
+        valido = self.sms_service.verificar_codigo(usuario.telefone, codigo, self.db)
         if not valido:
             raise ValueError("Código inválido ou expirado.")
 
@@ -91,7 +91,7 @@ class UsuarioController:
         if not usuario.telefone:
             raise ValueError("Usuário não possui telefone cadastrado.")
 
-        self.sms_service.enviar_verificacao(usuario.telefone)
+        self.sms_service.enviar_verificacao(usuario.telefone, self.db)
         return True
 
     # ── Verificação por e-mail ─────────────────────────────────────────────
@@ -108,7 +108,7 @@ class UsuarioController:
         if usuario.status:
             raise ValueError("Conta já está ativa.")
 
-        valido = self.email_service.verificar_codigo(email, codigo)
+        valido = self.email_service.verificar_codigo(email, codigo, self.db)
         if not valido:
             raise ValueError("Código inválido ou expirado.")
 
@@ -129,7 +129,7 @@ class UsuarioController:
         if usuario.status:
             raise ValueError("Conta já está ativa.")
 
-        self.email_service.enviar_verificacao(email)
+        self.email_service.enviar_verificacao(email, self.db)
         return True
 
     # ── Verificação de celular (endpoint direto sem conta) ─────────────────
@@ -138,14 +138,14 @@ class UsuarioController:
         """Envia código SMS para um número avulso (antes do cadastro)."""
         if not self.sms_service:
             raise ValueError("Serviço de SMS não disponível.")
-        self.sms_service.enviar_verificacao(telefone)
+        self.sms_service.enviar_verificacao(telefone, self.db)
         return True
 
     def verificar_sms_para_numero(self, telefone: str, codigo: str):
         """Valida o código SMS de um número avulso (antes do cadastro)."""
         if not self.sms_service:
             raise ValueError("Serviço de SMS não disponível.")
-        valido = self.sms_service.verificar_codigo(telefone, codigo)
+        valido = self.sms_service.verificar_codigo(telefone, codigo, self.db)
         if not valido:
             raise ValueError("Código inválido ou expirado.")
         return True

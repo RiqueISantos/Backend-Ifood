@@ -42,12 +42,12 @@ services:
   # ── Frontend Vite + Nginx ─────────────────────────────────────────────────
   frontend:
     build:
-      context: ../frontend-ifood/Frontend-Ifood
+      context: C:\Users\2403384\Desktop\frontend-ifood\Frontend-Ifood
       dockerfile: Dockerfile
       args:
         # Em produção Docker, o frontend faz proxy via Nginx para /api/
         # então VITE_API_URL aponta para a rota /api do próprio servidor
-        - VITE_API_URL=http://localhost:5000
+        - VITE_API_URL=/api
     container_name: ifood_frontend
     restart: unless-stopped
     ports:

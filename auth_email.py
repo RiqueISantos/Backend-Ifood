@@ -3,10 +3,11 @@ auth_email.py
 
 Serviço de verificação de e-mail via código de 6 dígitos.
 Usa a biblioteca requests para chamar a API do SendGrid.
+Os códigos são persistidos no PostgreSQL para sobreviver a restarts do container.
 
 Variáveis necessárias no .env:
-    SENDGRID_API_KEY       - chave da API do SendGrid
-    SENDGRID_FROM_EMAIL    - e-mail remetente verificado no SendGrid
+    SENDGRID_API_KEY          - chave da API do SendGrid
+    SENDGRID_FROM_EMAIL       - e-mail remetente verificado no SendGrid
     EMAIL_VERIFICATION_EXPIRY - TTL do código em segundos (padrão: 300)
 """
 
@@ -16,6 +17,7 @@ import secrets
 import time
 import requests
 from dotenv import load_dotenv
+from models.models import EmailVerificacao
 
 load_dotenv()
 
@@ -29,23 +31,28 @@ class AuthEmailService:
         self.from_email = os.getenv("SENDGRID_FROM_EMAIL", "")
         self.from_name  = "iFood Clone"
 
-        # Códigos em memória: { email: { codigo, expira_em } }
-        self._codigos: dict = {}
-
     # ── Público ───────────────────────────────────────────────────────────
 
-    def enviar_verificacao(self, email: str) -> str:
-        """Gera um código de 6 dígitos e envia por e-mail via SendGrid."""
+    def enviar_verificacao(self, email: str, db) -> str:
+        """Gera um código de 6 dígitos, persiste no banco e envia por e-mail."""
         email = email.strip().lower()
         if not self._email_valido(email):
             raise ValueError("E-mail inválido.")
 
         codigo = f"{secrets.randbelow(1_000_000):06d}"
 
-        self._codigos[email] = {
-            "codigo":    codigo,
-            "expira_em": time.time() + CODIGO_TTL_SEGUNDOS,
-        }
+        # Remove códigos antigos deste e-mail antes de inserir novo
+        db.query(EmailVerificacao).filter(
+            EmailVerificacao.email == email
+        ).delete(synchronize_session=False)
+
+        registro = EmailVerificacao(
+            email=email,
+            codigo=codigo,
+            expira_em=time.time() + CODIGO_TTL_SEGUNDOS,
+        )
+        db.add(registro)
+        db.commit()
 
         if self.api_key and self.from_email:
             self._enviar_sendgrid(email, codigo)
@@ -54,21 +61,29 @@ class AuthEmailService:
 
         return codigo
 
-    def verificar_codigo(self, email: str, codigo: str) -> bool:
-        """Retorna True se o código for válido e não expirado."""
-        email    = email.strip().lower()
-        registro = self._codigos.get(email)
+    def verificar_codigo(self, email: str, codigo: str, db) -> bool:
+        """Retorna True se o código for válido e não expirado, e remove do banco."""
+        email = email.strip().lower()
+
+        registro = (
+            db.query(EmailVerificacao)
+            .filter(EmailVerificacao.email == email)
+            .order_by(EmailVerificacao.expira_em.desc())
+            .first()
+        )
 
         if not registro:
             return False
 
-        if time.time() > registro["expira_em"]:
-            del self._codigos[email]
+        if time.time() > registro.expira_em:
+            db.delete(registro)
+            db.commit()
             return False
 
-        valido = secrets.compare_digest(registro["codigo"], str(codigo).strip())
+        valido = secrets.compare_digest(registro.codigo, str(codigo).strip())
         if valido:
-            del self._codigos[email]
+            db.delete(registro)
+            db.commit()
         return valido
 
     # ── Privado ───────────────────────────────────────────────────────────

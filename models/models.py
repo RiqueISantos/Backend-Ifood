@@ -1,6 +1,24 @@
 from datetime import datetime
-from sqlalchemy import Column, BigInteger, String, DateTime, Boolean
+from sqlalchemy import Column, BigInteger, String, DateTime, Boolean, Float
 from database import Base
+
+class SmsVerificacao(Base):
+    __tablename__ = 'sms_verificacoes'
+
+    id       = Column(BigInteger, primary_key=True, autoincrement=True)
+    numero   = Column(String(20),  nullable=False, index=True)
+    codigo   = Column(String(6),   nullable=False)
+    expira_em = Column(Float,      nullable=False)   # unix timestamp
+    verificado = Column(Boolean,   default=False)
+    verificado_expira_em = Column(Float, nullable=True)  # unix timestamp da janela pós-verificação
+
+class EmailVerificacao(Base):
+    __tablename__ = 'email_verificacoes'
+
+    id        = Column(BigInteger, primary_key=True, autoincrement=True)
+    email     = Column(String(150), nullable=False, index=True)
+    codigo    = Column(String(6),   nullable=False)
+    expira_em = Column(Float,       nullable=False)  # unix timestamp
 
 class Usuario(Base):
     __tablename__ = 'usuarios'

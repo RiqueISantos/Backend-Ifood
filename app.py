@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import engine, Base
+from models.models import Usuario, SmsVerificacao, EmailVerificacao  # garante que todos os modelos são registrados no Base
 import models
 from routes.usuario_routes import usuario_bp
 
@@ -18,10 +19,13 @@ app.config["SECRET_KEY"] = app.secret_key
 CORS(app, resources={
     r"/*": {
         "origins": [
-            "http://localhost:5173", 
-            "http://127.0.0.1:5173", 
-            "http://localhost:5174", 
-            "http://127.0.0.1:5174"
+            "http://localhost",
+            "http://localhost:80",
+            "http://127.0.0.1",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
         ]
     }
 })
