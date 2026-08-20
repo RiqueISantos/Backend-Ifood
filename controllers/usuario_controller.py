@@ -2,9 +2,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models.models import Usuario
 
 class UsuarioController:
-    def __init__(self, db, sms_service=None):
-        self.db = db
-        self.sms_service = sms_service
+    def __init__(self, db, sms_service=None, email_service=None):
+        self.db            = db
+        self.sms_service   = sms_service
+        self.email_service = email_service
 
     def gerar_hash(self, senha: str):
         return generate_password_hash(senha)
@@ -45,8 +46,9 @@ class UsuarioController:
         self.db.commit()
         self.db.refresh(novo_usuario)
 
-        if self.sms_service:
-            self.sms_service.enviar_verificacao(telefone)
+        # Envia código de verificação por e-mail (novo fluxo iFood)
+        if self.email_service:
+            self.email_service.enviar_verificacao(dados["email"])
 
         return novo_usuario
 
@@ -90,6 +92,62 @@ class UsuarioController:
             raise ValueError("Usuário não possui telefone cadastrado.")
 
         self.sms_service.enviar_verificacao(usuario.telefone)
+        return True
+
+    # ── Verificação por e-mail ─────────────────────────────────────────────
+
+    def ativar_conta_email(self, email: str, codigo: str):
+        """Valida o código de e-mail e ativa a conta."""
+        if not self.email_service:
+            raise ValueError("Serviço de e-mail não disponível.")
+
+        usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+        if not usuario:
+            raise ValueError("Usuário não encontrado.")
+
+        if usuario.status:
+            raise ValueError("Conta já está ativa.")
+
+        valido = self.email_service.verificar_codigo(email, codigo)
+        if not valido:
+            raise ValueError("Código inválido ou expirado.")
+
+        usuario.status = True
+        self.db.commit()
+        self.db.refresh(usuario)
+        return usuario
+
+    def reenviar_codigo_email(self, email: str):
+        """Reenvia o código de verificação por e-mail."""
+        if not self.email_service:
+            raise ValueError("Serviço de e-mail não disponível.")
+
+        usuario = self.db.query(Usuario).filter(Usuario.email == email).first()
+        if not usuario:
+            raise ValueError("Usuário não encontrado.")
+
+        if usuario.status:
+            raise ValueError("Conta já está ativa.")
+
+        self.email_service.enviar_verificacao(email)
+        return True
+
+    # ── Verificação de celular (endpoint direto sem conta) ─────────────────
+
+    def enviar_sms_para_numero(self, telefone: str):
+        """Envia código SMS para um número avulso (antes do cadastro)."""
+        if not self.sms_service:
+            raise ValueError("Serviço de SMS não disponível.")
+        self.sms_service.enviar_verificacao(telefone)
+        return True
+
+    def verificar_sms_para_numero(self, telefone: str, codigo: str):
+        """Valida o código SMS de um número avulso (antes do cadastro)."""
+        if not self.sms_service:
+            raise ValueError("Serviço de SMS não disponível.")
+        valido = self.sms_service.verificar_codigo(telefone, codigo)
+        if not valido:
+            raise ValueError("Código inválido ou expirado.")
         return True
 
     def buscar_usuario(self, usuario_email):
